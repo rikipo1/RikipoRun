@@ -1283,6 +1283,134 @@ const INSTRUKCJE = {
 };
 
 /* ── Animacja ruchu dla podglądu ćwiczenia ──────────────── */
+/* ── Ludzik: animowana figurka szkieletowa ────────────────────────────
+   Prawdziwa kinematyka: biodro→kolano→kostka(+stopa), bark→łokieć→dłoń,
+   pochylenie tułowia i głowy. Każde ćwiczenie = kilka KLATEK POZYCJI,
+   między którymi płynnie interpolujemy (ease-in-out, requestAnimationFrame).
+   Kąty w stopniach: kończyny mierzone od pionu W DÓŁ (+ = do przodu),
+   tułów od pionu W GÓRĘ (+ = pochylenie do przodu). Widok z boku,
+   twarzą w prawo; v:1 = widok z przodu (pajacyki). */
+const LPP = (o) => ({ hx: 96, hy: 108, t: 0, ll: -4, lk: 4, rl: 4, rk: 4, la: 6, le: 4, ra: -6, re: 4, ht: 0, ...o });
+const LGAIT = (th, kn, ar, el, bo, ms, lean = 0) => ({
+  dur: [ms, ms, ms, ms],
+  poses: [
+    LPP({ t: lean, hy: 108 - bo, rl: th, rk: kn * 0.9, ll: -th * 0.6, lk: kn * 0.35, la: ar, le: el, ra: -ar * 0.8, re: el * 0.6 }),
+    LPP({ t: lean, hy: 108, rl: 6, rk: kn * 0.5, ll: -8, lk: kn * 0.5, la: 6, le: el * 0.7, ra: -6, re: el * 0.7 }),
+    LPP({ t: lean, hy: 108 - bo, ll: th, lk: kn * 0.9, rl: -th * 0.6, rk: kn * 0.35, ra: ar, re: el, la: -ar * 0.8, le: el * 0.6 }),
+    LPP({ t: lean, hy: 108, ll: 6, lk: kn * 0.5, rl: -8, rk: kn * 0.5, ra: 6, re: el * 0.7, la: -6, le: el * 0.7 }),
+  ],
+});
+const LUDZIK_LIB = {
+  march: LGAIT(38, 78, 24, 72, 2, 430),
+  highknees: LGAIT(74, 96, 34, 86, 5, 300),
+  run: LGAIT(46, 96, 40, 90, 4, 330, 8),
+  stride: LGAIT(56, 102, 46, 92, 5, 280, 11),
+  jumpingjacks: { dur: [330, 330], poses: [{ v: 1, hy: 112, lg: 6, ar: 12 }, { v: 1, hy: 104, lg: 27, ar: 166 }] },
+  squat: { dur: [850, 850], poses: [LPP({ la: 30, le: 8, ra: 30, re: 8 }), LPP({ hy: 131, t: 20, ll: 53, lk: 100, rl: 53, rk: 100, la: 80, le: 6, ra: 80, re: 6 })] },
+  squatweight: { bar: "shoulders", dur: [900, 900], poses: [LPP({ la: 22, le: 142, ra: 22, re: 142 }), LPP({ hy: 131, t: 16, ll: 53, lk: 100, rl: 53, rk: 100, la: 30, le: 138, ra: 30, re: 138 })] },
+  lunge: { dur: [800, 800], poses: [LPP({ hy: 114, rl: 26, rk: 40, ll: -30, lk: 14, la: 10, le: 90, ra: -10, re: 90 }), LPP({ hy: 130, rl: 36, rk: 88, ll: -44, lk: 34, la: 10, le: 90, ra: -10, re: 90 })] },
+  pushup: { dur: [800, 800], poses: [LPP({ hx: 100, hy: 126, t: 88, ll: -82, lk: 6, rl: -82, rk: 6, la: -4, le: 8, ra: -4, re: 8, ht: -70 }), LPP({ hx: 100, hy: 145, t: 88, ll: -83, lk: 6, rl: -83, rk: 6, la: -52, le: 115, ra: -52, re: 115, ht: -70 })] },
+  plank: { dur: [1500, 1500], poses: [LPP({ hx: 100, hy: 146, t: 88, ll: -82, lk: 5, rl: -82, rk: 5, la: -10, le: 100, ra: -10, re: 100, ht: -70 }), LPP({ hx: 100, hy: 143, t: 88, ll: -82, lk: 5, rl: -82, rk: 5, la: -10, le: 100, ra: -10, re: 100, ht: -70 })] },
+  plankside: { dur: [1500, 1500], poses: [LPP({ hx: 110, hy: 140, t: 66, ll: -58, lk: 0, rl: -58, rk: 0, la: 4, le: 2, ra: 184, re: -6, ht: -35 }), LPP({ hx: 110, hy: 137, t: 68, ll: -58, lk: 0, rl: -58, rk: 0, la: 4, le: 2, ra: 184, re: -6, ht: -35 })] },
+  bridge: { dur: [1000, 1000], poses: [LPP({ hx: 103, hy: 160, t: -101, ll: 116, lk: 116, rl: 116, rk: 116, la: -80, le: -6, ra: -80, re: -6, ht: 55 }), LPP({ hx: 103, hy: 143, t: -119, ll: 124, lk: 118, rl: 124, rk: 118, la: -84, le: -6, ra: -84, re: -6, ht: 66 })] },
+  childpose: { dur: [1900, 1900], poses: [LPP({ hx: 88, hy: 142, t: 112, ll: 42, lk: 132, rl: 42, rk: 132, la: 100, le: 4, ra: 100, re: 4, ht: 8 }), LPP({ hx: 88, hy: 139, t: 110, ll: 42, lk: 132, rl: 42, rk: 132, la: 100, le: 4, ra: 100, re: 4, ht: 8 })] },
+  hamstring: { dur: [2000, 2000], poses: [LPP({ t: 28, rl: 26, rk: -3, rfa: 42, ll: -4, lk: 8, la: 55, le: 8, ra: 55, re: 8 }), LPP({ t: 72, rl: 28, rk: -3, rfa: 42, ll: -4, lk: 10, la: 112, le: 6, ra: 112, re: 6 })] },
+  quadstretch: { wall: 158, dur: [1700, 1700], poses: [LPP({ ll: -2, lk: 2, rl: -8, rk: 132, la: 92, le: 2, ra: -32, re: -92 }), LPP({ ll: -2, lk: 2, rl: -8, rk: 141, la: 92, le: 2, ra: -34, re: -98 })] },
+  calf: { wall: 158, dur: [1700, 1700], poses: [LPP({ hx: 86, hy: 118, t: 20, rl: -38, rk: 0, ll: 14, lk: 34, la: 92, le: 4, ra: 92, re: 4 }), LPP({ hx: 86, hy: 117, t: 24, rl: -40, rk: 0, ll: 15, lk: 36, la: 95, le: 4, ra: 95, re: 4 })] },
+  calfraise: { dur: [700, 700], poses: [LPP({}), LPP({ hy: 98, t: 3, la: 10, ra: -10 })] },
+  legswing: { wall: 34, dur: [340, 340, 340, 340], poses: [LPP({ la: -92, le: -2, ra: 10, re: 60, rl: -44, rk: 10, t: 6 }), LPP({ la: -92, le: -2, ra: 10, re: 60, rl: 4, rk: 14, t: 0 }), LPP({ la: -92, le: -2, ra: 10, re: 60, rl: 54, rk: 6, t: -6 }), LPP({ la: -92, le: -2, ra: 10, re: 60, rl: 4, rk: 14, t: 0 })] },
+  shoulder: { dur: [380, 380, 380, 380, 1], poses: [LPP({ la: 20, le: 0, ra: 20, re: 0 }), LPP({ la: 110, le: 0, ra: 110, re: 0 }), LPP({ la: 200, le: 0, ra: 200, re: 0 }), LPP({ la: 290, le: 0, ra: 290, re: 0 }), LPP({ la: 380, le: 0, ra: 380, re: 0 })] },
+  ankle: { dur: [300, 300, 300, 300], poses: [LPP({ rl: 52, rk: 92, rfa: -30, ra: -22, re: 58, la: 8, le: 50 }), LPP({ rl: 53, rk: 96, rfa: 22, ra: -22, re: 58, la: 8, le: 50 }), LPP({ rl: 52, rk: 99, rfa: 60, ra: -22, re: 58, la: 8, le: 50 }), LPP({ rl: 51, rk: 95, rfa: 8, ra: -22, re: 58, la: 8, le: 50 })] },
+  row: { bar: "hands", dur: [750, 750], poses: [LPP({ t: 52, hx: 90, ll: 8, lk: 18, rl: 8, rk: 18, la: 44, le: 2, ra: 44, re: 2 }), LPP({ t: 52, hx: 90, ll: 8, lk: 18, rl: 8, rk: 18, la: -24, le: 58, ra: -24, re: 58 })] },
+  deadlift: { bar: "hands", dur: [950, 950], poses: [LPP({ t: 66, hx: 88, hy: 122, ll: 18, lk: 26, rl: 18, rk: 26, la: 42, le: 2, ra: 42, re: 2 }), LPP({ t: 4, hx: 96, hy: 108, ll: 0, lk: 4, rl: 0, rk: 4, la: 6, le: 2, ra: 6, re: 2 })] },
+};
+function Ludzik({ kind, color = C.accent, active = true }) {
+  const spec = LUDZIK_LIB[kind] || LUDZIK_LIB.march;
+  const [pz, setPz] = useState(spec.poses[0]);
+  const rafRef = useRef(null);
+  useEffect(() => {
+    const sp = LUDZIK_LIB[kind] || LUDZIK_LIB.march;
+    if (!active) { setPz(sp.poses[0]); return undefined; }
+    const total = sp.dur.reduce((a, b) => a + b, 0);
+    const ease = (x) => (x < 0.5 ? 2 * x * x : 1 - Math.pow(-2 * x + 2, 2) / 2);
+    const start = performance.now();
+    const tick = (now) => {
+      let t = (now - start) % total, i = 0;
+      while (t >= sp.dur[i]) { t -= sp.dur[i]; i += 1; }
+      const a = sp.poses[i], b = sp.poses[(i + 1) % sp.poses.length];
+      const k = ease(t / sp.dur[i]);
+      const out = {};
+      for (const key in a) { const av = a[key], bv = (b[key] !== undefined ? b[key] : av); out[key] = av + (bv - av) * k; }
+      setPz(out);
+      rafRef.current = requestAnimationFrame(tick);
+    };
+    rafRef.current = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(rafRef.current);
+  }, [kind, active]);
+  const D = Math.PI / 180, GY = 172;
+  const dd = (a) => [Math.sin(a * D), Math.cos(a * D)];
+  const st = { stroke: color, strokeWidth: 7, fill: "none", strokeLinecap: "round", strokeLinejoin: "round" };
+  const seg = (p, q, i) => <path key={i} d={`M${p[0].toFixed(1)} ${p[1].toFixed(1)} L${q[0].toFixed(1)} ${q[1].toFixed(1)}`} />;
+  let body = null;
+  if (pz.v) {
+    // widok z przodu (pajacyki)
+    const hip = [100, pz.hy], sh = [100, pz.hy - 42], hd = [100, pz.hy - 58];
+    const lgd = dd(pz.lg), ard = dd(pz.ar);
+    body = (
+      <g style={st}>
+        <circle cx={hd[0]} cy={hd[1]} r={11} fill={color} />
+        {seg(sh, hip, "t")}
+        {seg(sh, [sh[0] - 48 * ard[0], sh[1] + 48 * ard[1]], "a1")}{seg(sh, [sh[0] + 48 * ard[0], sh[1] + 48 * ard[1]], "a2")}
+        {seg(hip, [hip[0] - 62 * lgd[0], hip[1] + 62 * lgd[1]], "l1")}{seg(hip, [hip[0] + 62 * lgd[0], hip[1] + 62 * lgd[1]], "l2")}
+      </g>
+    );
+  } else {
+    const hip = [pz.hx, pz.hy];
+    const sh = [hip[0] + 42 * Math.sin(pz.t * D), hip[1] - 42 * Math.cos(pz.t * D)];
+    const hd = [sh[0] + 17 * Math.sin((pz.t + pz.ht) * D), sh[1] - 17 * Math.cos((pz.t + pz.ht) * D)];
+    const noga = (a, k, fa, i) => {
+      const kn = [hip[0] + 32 * dd(a)[0], hip[1] + 32 * dd(a)[1]];
+      const an = [kn[0] + 32 * dd(a - k)[0], kn[1] + 32 * dd(a - k)[1]];
+      const parts = [seg(hip, kn, `${i}u`), seg(kn, an, `${i}d`)];
+      if (fa !== undefined && fa !== null && !Number.isNaN(fa)) parts.push(seg(an, [an[0] + 13 * Math.cos(fa * D), an[1] - 13 * Math.sin(fa * D)], `${i}f`));
+      else if (an[1] > GY - 14) parts.push(seg(an, [an[0] + 12, Math.min(an[1] + 11, GY)], `${i}f`)); // stopa dociągana do podłoża (uniesiona pięta wygląda naturalnie)
+      return parts;
+    };
+    const reka = (a, e, i) => {
+      const el = [sh[0] + 26 * dd(a)[0], sh[1] + 26 * dd(a)[1]];
+      const ha = [el[0] + 24 * dd(a + e)[0], el[1] + 24 * dd(a + e)[1]];
+      return { parts: [seg(sh, el, `${i}u`), seg(el, ha, `${i}d`)], hand: ha };
+    };
+    const rL = reka(pz.la, pz.le, "al"), rR = reka(pz.ra, pz.re, "ar");
+    let barEl = null;
+    if (spec.bar) {
+      const c = spec.bar === "shoulders" ? sh : rR.hand;
+      barEl = (
+        <g stroke={color} strokeWidth={5} strokeLinecap="round" opacity={0.9}>
+          <path d={`M${c[0] - 24} ${c[1]} L${c[0] + 24} ${c[1]}`} />
+          <path d={`M${c[0] - 24} ${c[1] - 7} L${c[0] - 24} ${c[1] + 7}`} strokeWidth={7} />
+          <path d={`M${c[0] + 24} ${c[1] - 7} L${c[0] + 24} ${c[1] + 7}`} strokeWidth={7} />
+        </g>
+      );
+    }
+    body = (
+      <g style={st}>
+        <circle cx={hd[0]} cy={hd[1]} r={11} fill={color} />
+        {seg(sh, hip, "t")}
+        {noga(pz.ll, pz.lk, pz.lfa, "ll")}{noga(pz.rl, pz.rk, pz.rfa, "rl")}
+        {rL.parts}{rR.parts}
+        {barEl}
+      </g>
+    );
+  }
+  return (
+    <svg viewBox="0 0 200 200" width="100%" height="100%">
+      <path d={`M14 ${GY} L186 ${GY}`} stroke={color} strokeWidth={3} strokeLinecap="round" opacity={0.22} />
+      {spec.wall != null && <path d={`M${spec.wall} 54 L${spec.wall} ${GY}`} stroke={color} strokeWidth={4} strokeLinecap="round" opacity={0.3} />}
+      {body}
+    </svg>
+  );
+}
 const ANIM_EX = {
   jumpingjacks: "bob", highknees: "bob", march: "step", stride: "step", run: "step",
   legswing: "swing", shoulder: "swing", ankle: "swing",
@@ -3817,8 +3945,8 @@ function Sekwencja({ list, mode, onDone, go, profile, hr }) {
       </div>
 
       <div style={{ background: C.surface, borderRadius: 20, padding: "10px 10px 0", aspectRatio: "1.3", marginBottom: 16, position: "relative" }}>
-        <div style={{ width: "100%", height: "100%", transformOrigin: "center bottom", animation: running ? `${ANIM_EX[ex.kind] || "breathe"} ${(["jumpingjacks", "highknees"].includes(ex.kind)) ? "0.7s" : ["march", "step", "stride"].includes(ex.kind) ? "1s" : ["legswing", "swing", "shoulder"].includes(ex.kind) ? "1.4s" : "2.4s"} ease-in-out infinite` : "none" }}>
-          <Figure kind={ex.kind} color={color} />
+        <div style={{ width: "100%", height: "100%" }}>
+          <Ludzik kind={ex.kind} color={color} active={running} />
         </div>
         {running && <div style={{ position: "absolute", top: 10, right: 12, fontSize: 10, color: C.sub, fontWeight: 700, letterSpacing: 1, opacity: .7 }}>{tx("● RUCH")}</div>}
       </div>
@@ -6275,8 +6403,8 @@ function KrokSilowy({ step, onNext, hr, profile }) {
       <div style={{ fontSize: 12, color: C.sub, marginBottom: 10 }}>{SILA[place].label} {tx("· ćwiczenie")} {exIdx + 1}/{lista.length}</div>
 
       <div style={{ background: C.surface, borderRadius: 20, padding: 10, aspectRatio: "1.4", marginBottom: 12, position: "relative" }}>
-        <div style={{ width: "100%", height: "100%", transformOrigin: "center bottom", animation: !resting ? `${ANIM_EX[ex.kind] || "bob"} 1.6s ease-in-out infinite` : "none" }}>
-          <Figure kind={ex.kind} color={C.purple} />
+        <div style={{ width: "100%", height: "100%" }}>
+          <Ludzik kind={ex.kind} color={C.purple} active={!resting} />
         </div>
         {!resting && <div style={{ position: "absolute", top: 10, right: 12, fontSize: 10, color: C.sub, fontWeight: 700, letterSpacing: 1, opacity: .7 }}>{tx("● RUCH")}</div>}
       </div>
